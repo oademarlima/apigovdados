@@ -1,5 +1,0 @@
-requests
-tenacity
-python-dotenv
-pyspark; python_version>='3.8'
-pyarrow
