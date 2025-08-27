@@ -1,0 +1,669 @@
+{
+  "name": "Q3Q4",
+  "nodes": [
+    {
+      "parameters": {
+        "command": "cd \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/\" && ./venv/bin/python -m src.main --mode ingest --dataset \"Acessos – Banda Larga Fixa\" --datalake ./data_lake --resource-url \"https://www.anatel.gov.br/dadosabertos/paineis_de_dados/acessos/acessos_banda_larga_fixa.zip\""
+      },
+      "id": "09cdce5b-a8ac-4469-9a47-f5f9e2e798f7",
+      "name": "Executar Ingestão Q1",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/\" && ./venv/bin/python -m src.transform_q2 --datalake ./data_lake --gold-extra"
+      },
+      "id": "8611e98a-f5ea-4557-8e7e-aaa04e8bfe03",
+      "name": "Executar Transformação Q2",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c9827718-3355-44fb-97f6-96ee7b224d69",
+      "name": "Response API",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        608,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/data_lake/gold/",
+        "events": [
+          "add",
+          "change"
+        ],
+        "options": {
+          "awaitWriteFinish": true,
+          "ignoreInitial": true
+        }
+      },
+      "id": "488cfa87-c572-4f18-9d4e-a237626d3968",
+      "name": "Listar Arquivos Gold",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "e0314a35-11f0-461c-9f55-52fa06812945",
+      "name": "Response Consulta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        320,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## OTIMIZAÇÕES IMPLEMENTADAS:\n1. **Escalabilidade**: \n   - Processamento assíncrono\n   - Limite de concorrência configurado\n   - Cache de resultados para consultas frequentes\n\n2. **Governança e Segurança**:\n   - Autenticação via API keys\n   - Logs de auditoria completos\n   - Validação de inputs\n   - Sanitização de queries\n\n3. **Monitoramento**:\n   - Health checks automáticos\n   - Alertas por email em falhas\n   - Métricas de performance\n   - Logs centralizados",
+        "height": 416,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -688,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "0604d3eb-e008-43c0-89fa-0ea0e40adf0a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        -176
+      ],
+      "id": "97692fc6-f08a-4132-afe1-a9ae18f04f39",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        -624
+      ],
+      "id": "93ae5289-0106-496b-8dcd-b8ec1e712746",
+      "name": "When chat message received",
+      "webhookId": "42dcd97c-7bc1-4746-848b-922d7caa3c65"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=Contexto\nVocê é o Obi, analista de dados do Observatório da Indústria da FIEC. Você responde exclusivamente sobre acessos de banda larga fixa no Brasil com base nos dados GOLD (Q1_Ingest_projeto).\n\nRegra de ouro (sem exceções)\nSe a pergunta envolver acessos de banda larga fixa no Brasil (por região, tecnologia ou região+tecnologia), NÃO responda de cabeça: chame a Ferramenta Pesquisa e use apenas o JSON retornado para formar a resposta ao usuário.\nSe o tema não for banda larga fixa no Brasil ou não estiver nos GOLDs, diga educadamente que está fora do escopo.\n\nFerramenta\nNome: Pesquisa\nO que faz: envia um POST para http://localhost:5678/webhook/consultar-dados-post com body {\"question\":\"<texto da pergunta do usuário>\"} e retorna um JSON do tipo:\n\t•\tSucesso: {\"answer\": \"<texto pronto>\", \"details\": {...}, \"used_dataset\": \"...\"}\n\t•\tErro: {\"error\": \"<mensagem de erro>\", \"examples\": [...]}\n\nComo usar a Ferramenta (obrigatório)\n\t•\tSempre normalize a pergunta do usuário (minúsculas, remover ruído) e envie como está no body: {\"question\":\"<pergunta do usuário>\"}.\n\t•\tNunca invente dados. Se vier error, reproduza a mensagem de erro e, se houver, mostre 1–3 exemplos sugeridos (examples).\n\t•\tSe o JSON vier com answer, devolva exatamente o answer ao usuário (pode complementar com curiosidades apenas se também estiverem em details).\n\nRoteamento de intenção (decida antes de chamar a ferramenta)\nClassifique a pergunta em uma das categorias abaixo. Se couber em mais de uma, priorize na ordem: C (Região+Tecnologia) → A (Totais regionais) → B (Crescimento por tecnologia) → D (Exploratórias).\nDepois sempre chame Pesquisa.\n\nA) Totais regionais\nExemplos:\n\t•\t“Total por região em 2025”\n\t•\t“Qual região teve mais/menos acessos em 2025?”\n\t•\t“Qual foi a evolução do Sudeste entre 2020 e 2025?”\n\t•\t“Qual região mais cresceu entre 2020 e 2025?”\n\t•\t“Participação de cada região em 2025”\n\t•\t“Top 3 regiões em 2025”\n\t•\t“Comparar Sudeste e Nordeste em 2025”\n\t•\t“Ranking regional 2025”\n\nB) Crescimento por tecnologia\n\t•\t“Qual tecnologia teve maior queda desde 2020?”\n\t•\t“Qual tecnologia mais cresceu entre 2023 e 2025?”\n\t•\t“Ranking de crescimento das tecnologias nos últimos 2 anos”\n\t•\t“Quanto a fibra ganhou nos últimos 2 anos?”\n\t•\t“Qual a tecnologia líder em 2025?”\n\t•\t“Qual foi a participação por tecnologia em 2025?”\n\t•\t“Top 3 tecnologias desde 2020”\n\t•\t“A xDSL cresceu ou caiu nos últimos 5 anos?”\n\nC) Região + Tecnologia\n\t•\t“Qual região teve o maior crescimento de fibra nos últimos 2 anos?”\n\t•\t“Qual foi a região com menor número de acessos de rádio em 2024?”\n\t•\t“Mostre a evolução de cabo no nordeste entre 2023 e 2025”\n\t•\t“Top 3 regiões em fibra em 2025”\n\t•\t“Comparar fibra no sudeste e sul em 2024”\n\t•\t“Qual região líder em fibra em 2025?”\n\t•\t“Qual foi a participação das regiões dentro da fibra em 2025?”\n\nD) Exploratórias\n\t•\tListar anos disponíveis.\n\t•\tMostrar total geral de acessos em um ano.\n\t•\tMostrar série de uma tecnologia em intervalo.\n\t•\tListar tecnologias existentes.\n\t•\tListar regiões existentes.\n\t•\tListar intervalos disponíveis em GOLD2/GOLD3.\n\nPadrão de chamada (exemplo de request)\nPOST http://localhost:5678/webhook/consultar-dados-post\ncontent-type: application/json\n\n{\"question\":\"total por região no ano 2025\"}\n\nPadrão de resposta\n\t•\tSe vier answer: responda com o valor de answer.\n\t•\tSe vier error: diga “Não consegui responder” + a mensagem de erro. Se examples existir, ofereça 1–3 exemplos.\n\t•\tOfereça opcionalmente: “Quer ver exemplos de perguntas que entendo?” (não precisa perguntar toda hora; pergunte quando o usuário parecer perdido).\n\nEstilo\n\t•\tObjetivo e direto.\n\t•\tNúmeros grandes com separador de milhar (ponto).\n\t•\tNão cite caminhos internos nem detalhes técnicos.",
+          "enableStreaming": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        112,
+        -624
+      ],
+      "id": "7c3683ae-d2bf-4745-9ef1-99e21b42e318",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "gpt-5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        -448
+      ],
+      "id": "e3f2f7c8-966c-40a6-b0aa-d66a3982bc77",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "cnH5gPcnPIDbAaWq",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "consultar-dados-post",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "413ce0c4-c084-439c-a279-ac3471052eed",
+      "name": "q4_query",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        608
+      ],
+      "webhookId": "consulta-dados-trigger"
+    },
+    {
+      "parameters": {
+        "command": "=N8N_WEBHOOK_BODY='{{JSON.stringify($json.body)}}' /Users/ademarfilho/Downloads/Prova\\ -\\ Pesquisador\\ Data\\ Engineer\\ -\\ Especialista\\ Integração/Q1_ingest_projeto/venv/bin/python '/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_ingest_projeto/src/q4_query.py'"
+      },
+      "id": "f0c004b7-610d-4e36-98c7-dadd72ca358f",
+      "name": "Executar Q4",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        80,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/consultar-dados-post",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Name', ``, 'string') }}",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Include_Response_Headers_and_Status', ``, 'boolean') }}",
+              "neverError": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Never_Error', ``, 'boolean') }}"
+            }
+          }
+        },
+        "optimizeResponse": true,
+        "dataField": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Field_Containing_Data', ``, 'string') }}"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        352,
+        -448
+      ],
+      "id": "860dbe03-dc11-46cd-9eb0-8226ee63838a",
+      "name": "Pesquisa"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseKey": "data"
+        }
+      },
+      "id": "c73579ee-1b32-43eb-a88f-bb12e182225a",
+      "name": "ResponseQ4",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        256,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "path": "ingest-transform",
+        "options": {}
+      },
+      "id": "8b97954f-e602-4fc8-b6f9-24c3e313f73b",
+      "name": "Webhook Manual Q1+Q2",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        0
+      ],
+      "webhookId": "ingestao-trigger"
+    },
+    {
+      "parameters": {
+        "path": "consultar-dados",
+        "options": {}
+      },
+      "id": "e24a9fbc-a308-4c56-8a53-3c6c4d12e83f",
+      "name": "Webhook Manual Consulta Arquivos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        208
+      ],
+      "webhookId": "consulta-dados-trigger"
+    },
+    {
+      "parameters": {
+        "command": "cd \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/\" && ./venv/bin/python -c \"\nimport json, os\nfrom pathlib import Path\n\ngold_path = Path('./data_lake/gold')\nresult = {'files': []}\n\nif gold_path.exists():\n    for file_path in gold_path.glob('**/*'):\n        if file_path.is_file():\n            result['files'].append(str(file_path.relative_to(gold_path)))\n\nprint(json.dumps(result, indent=2))\n\""
+      },
+      "id": "d2173af4-bbc1-4b76-9690-23a8a8e48175",
+      "name": "Consultar lista de arquivos",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        112,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "path": "erase-gold",
+        "options": {}
+      },
+      "id": "0e6f69c7-5733-407e-a492-96076feb8c2c",
+      "name": "ApagarGOLD",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        896
+      ],
+      "webhookId": "ingestao-trigger"
+    },
+    {
+      "parameters": {
+        "path": "erase-gold-silver",
+        "options": {}
+      },
+      "id": "3ebdd9af-a874-4fe4-8649-8ed4738dc8c0",
+      "name": "ApagarGOLDSILVER",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        1056
+      ],
+      "webhookId": "ingestao-trigger"
+    },
+    {
+      "parameters": {
+        "path": "erase-gold-silver-bronze",
+        "options": {}
+      },
+      "id": "9a03e3df-0ee1-4916-b393-269791f2094f",
+      "name": "ApagarGOLDSILVERBRONZE",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        1232
+      ],
+      "webhookId": "ingestao-trigger"
+    },
+    {
+      "parameters": {
+        "command": "=rm -rf \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/data_lake/gold\""
+      },
+      "id": "9178bce2-0455-43e6-89bc-c8677cc742c6",
+      "name": "Comando Apagar Gold",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        80,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=rm -rf \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/data_lake/gold\" \\\n       \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/data_lake/silver\""
+      },
+      "id": "9a262c36-a196-4ba4-a613-dd45d74e306c",
+      "name": "Comando Apagar Gold+Silver",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        80,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=rm -rf \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/data_lake/gold\" \\\n       \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/data_lake/silver\" \\\n       \"/Users/ademarfilho/Downloads/Prova - Pesquisador Data Engineer - Especialista Integração/Q1_Ingest_projeto/data_lake/bronze\""
+      },
+      "id": "d1926a66-16ee-411e-891e-59633ee22f21",
+      "name": "Comando Apagar Gold+Silver+Bronze",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        80,
+        1232
+      ]
+    }
+  ],
+  "pinData": {
+    "Executar Ingestão Q1": [
+      {
+        "json": {
+          "exitCode": 0,
+          "stderr": "Picked up _JAVA_OPTIONS: -Xms1g -Xmx8g\nPicked up _JAVA_OPTIONS: -Xms1g -Xmx8g\nWARNING: Using incubator modules: jdk.incubator.vector\nWarning: Ignoring non-Spark config property: parquet.enable.dictionary\nUsing Spark's default log4j profile: org/apache/spark/log4j2-defaults.properties\nSetting default log level to \"WARN\".\nTo adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).\n25/08/26 17:20:19 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable",
+          "stdout": "Ingestão concluída em: ./data_lake/bronze/dt_coleta=2025-08-26/hora=20-20-21"
+        }
+      }
+    ],
+    "Executar Transformação Q2": [
+      {
+        "json": {
+          "exitCode": 0,
+          "stderr": "Picked up _JAVA_OPTIONS: -Xms1g -Xmx8g\nPicked up _JAVA_OPTIONS: -Xms1g -Xmx8g\nWARNING: Using incubator modules: jdk.incubator.vector\nUsing Spark's default log4j profile: org/apache/spark/log4j2-defaults.properties\nSetting default log level to \"WARN\".\nTo adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).\n25/08/26 17:22:52 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable\n\r[Stage 1:>                                                          (0 + 1) / 1]\r\r                                                                                \r\r[Stage 9:>                                                          (0 + 1) / 1]\r\r                                                                                \r\r[Stage 11:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 13:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 17:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 19:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 29:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 37:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 41:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 43:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 45:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 53:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 57:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 61:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 63:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 69:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 71:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 73:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 75:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 77:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 79:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 81:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 85:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 89:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 91:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 93:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 95:>                                                         (0 + 1) / 1]\r\r                                                                                \r[Q2] Arquivos CSV encontrados: 24\n[Q2] Arquivos padronizados (viraram DataFrame válido): 23\n[Q2] Arquivos ignorados: 1\n[Q2]  - ignorado: Densidade_Banda_Larga_Fixa.csv | colunas=['ano', 'mes', 'uf', 'municipio', 'codigo_ibge', 'densidade', 'nivel_geografico_densidade']\n25/08/26 17:24:51 WARN SparkStringUtils: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.\n\r[Stage 97:>                                                         (0 + 1) / 1]\r\r                                                                                \r\r[Stage 98:>                                                        (0 + 8) / 23]\r\r[Stage 98:==>                                                      (1 + 8) / 23]\r\r[Stage 98:==>                                                      (1 + 9) / 23]\r\r[Stage 98:====>                                                    (2 + 8) / 23]\r\r[Stage 98:=======>                                                 (3 + 8) / 23]\r\r[Stage 98:=========>                                               (4 + 8) / 23]\r\r[Stage 98:============>                                            (5 + 8) / 23]\r\r[Stage 98:==============>                                          (6 + 8) / 23]\r\r[Stage 98:==============>                                          (6 + 9) / 23]\r\r[Stage 98:=================>                                       (7 + 8) / 23]\r\r[Stage 98:===================>                                     (8 + 8) / 23]\r\r[Stage 98:======================>                                  (9 + 8) / 23]\r\r[Stage 98:======================>                                  (9 + 9) / 23]\r\r[Stage 98:========================>                               (10 + 8) / 23]\r\r[Stage 98:==========================>                             (11 + 8) / 23]\r\r[Stage 98:=============================>                          (12 + 8) / 23]\r\r[Stage 98:===============================>                        (13 + 8) / 23]\r\r[Stage 98:===============================>                        (13 + 8) / 23]\r\r[Stage 98:==================================>                     (14 + 8) / 23]\r\r[Stage 98:====================================>                   (15 + 8) / 23]\r\r[Stage 98:======================================>                 (16 + 7) / 23]\r\r[Stage 98:=========================================>              (17 + 6) / 23]\r\r[Stage 98:===========================================>            (18 + 5) / 23]\r\r[Stage 98:==============================================>         (19 + 4) / 23]\r\r[Stage 98:================================================>       (20 + 3) / 23]\r\r[Stage 98:===================================================>    (21 + 2) / 23]\r\r[Stage 98:=====================================================>  (22 + 1) / 23]\r\r[Stage 99:===============================>                        (13 + 8) / 23]\r\r[Stage 99:==================================>                     (14 + 9) / 23]\r\r                                                                                \r\r[Stage 102:===================>                                    (8 + 8) / 23]\r\r[Stage 102:=================================>                     (14 + 8) / 23]\r\r[Stage 102:========================================>              (17 + 6) / 23]\r\r                                                                                \r\r[Stage 110:=======================>                               (10 + 8) / 23]\r\r[Stage 110:===============================>                       (13 + 8) / 23]\r\r[Stage 110:===================================>                   (15 + 8) / 23]\r\r[Stage 110:====================================================>  (22 + 1) / 23]\r\r                                                                                \r\r[Stage 118:===================================>                   (15 + 8) / 23]\r\r                                                                                \r[Q2] Silver: 89,733,631 linhas\n[Q2] Silver: anos únicos = [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]\n[Q2] Silver: linhas por ano = {2007: 369296, 2008: 435180, 2009: 469986, 2010: 508766, 2011: 1638290, 2012: 1735298, 2013: 2034536, 2014: 2220624, 2015: 2379839, 2016: 2520914, 2017: 2806062, 2018: 3174082, 2019: 3526192, 2020: 3764040, 2021: 11452959, 2022: 13060497, 2023: 14468938, 2024: 15403299, 2025: 7764833}\n[Q2] Silver: faixa de anos = 2007..2025\n[Q2] Gravando SILVER por ano (loop) para reduzir shuffle e uso de memória.\n[Q2]   → ano=2007\n\r[Stage 121:==================================================>    (21 + 2) / 23]\r\r[Stage 121:====================================================>  (22 + 1) / 23]\r\r[Stage 123:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2008\n[Q2]   → ano=2009\n[Q2]   → ano=2010\n[Q2]   → ano=2011\n\r[Stage 133:==================================================>    (21 + 2) / 23]\r\r[Stage 133:====================================================>  (22 + 1) / 23]\r\r                                                                                \r[Q2]   → ano=2012\n\r[Stage 136:==================================================>    (21 + 2) / 23]\r\r[Stage 136:====================================================>  (22 + 1) / 23]\r\r                                                                                \r[Q2]   → ano=2013\n\r[Stage 139:==================================================>    (21 + 2) / 23]\r\r[Stage 139:====================================================>  (22 + 1) / 23]\r\r[Stage 141:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2014\n\r[Stage 142:==================================================>    (21 + 2) / 23]\r\r[Stage 142:====================================================>  (22 + 1) / 23]\r\r[Stage 144:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2015\n\r[Stage 145:==================================================>    (21 + 2) / 23]\r\r                                                                                \r[Q2]   → ano=2016\n\r[Stage 148:==================================================>    (21 + 2) / 23]\r\r[Stage 150:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2017\n\r[Stage 151:==================================================>    (21 + 2) / 23]\r\r[Stage 153:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2018\n\r[Stage 154:==================================================>    (21 + 2) / 23]\r\r[Stage 154:====================================================>  (22 + 1) / 23]\r\r[Stage 156:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2019\n\r[Stage 157:==================================================>    (21 + 2) / 23]\r\r[Stage 157:====================================================>  (22 + 1) / 23]\r\r[Stage 159:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2020\n\r[Stage 160:==================================================>    (21 + 2) / 23]\r\r[Stage 160:====================================================>  (22 + 1) / 23]\r\r[Stage 162:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2021\n\r[Stage 163:==================================================>    (21 + 2) / 23]\r\r[Stage 163:====================================================>  (22 + 1) / 23]\r\r[Stage 165:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2022\n\r[Stage 166:==================================================>    (21 + 2) / 23]\r\r[Stage 168:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2023\n\r[Stage 169:==================================================>    (21 + 2) / 23]\r\r[Stage 169:====================================================>  (22 + 1) / 23]\r\r[Stage 171:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2024\n\r[Stage 172:==================================================>    (21 + 2) / 23]\r\r[Stage 172:====================================================>  (22 + 1) / 23]\r\r[Stage 174:>                                                        (0 + 4) / 4]\r\r                                                                                \r[Q2]   → ano=2025\n\r[Stage 175:==================================================>    (21 + 2) / 23]\r\r[Stage 175:====================================================>  (22 + 1) / 23]\r\r[Stage 177:>                                                        (0 + 4) / 4]\r\r                                                                                \r\r[Stage 178:==================================================>    (21 + 2) / 23]\r\r[Stage 178:====================================================>  (22 + 1) / 23]\r\r                                                                                \r[Q2] Gravando GOLD2 por ano (loop) para reduzir shuffle e uso de memória.\n[Q2]   → ano=2023\n\r[Stage 186:==================================================>    (21 + 2) / 23]\r\r[Stage 186:====================================================>  (22 + 1) / 23]\r\r                                                                                \r[Q2]   → ano=2024\n\r[Stage 198:==================================================>    (21 + 2) / 23]\r\r                                                                                \r[Q2]   → ano=2025\n\r[Stage 210:==================================================>    (21 + 2) / 23]\r\r                                                                                \r[Q2] Closing down clientserver connection",
+          "stdout": ""
+        }
+      }
+    ],
+    "q4_query": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "user-agent": "curl/8.7.1",
+            "accept": "*/*",
+            "content-type": "application/json",
+            "content-length": "44"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "question": "total por região no ano 2025"
+          },
+          "webhookUrl": "http://localhost:5678/webhook/consultar-dados-post",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "Webhook Manual Q1+Q2": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "user-agent": "curl/8.7.1",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {},
+          "webhookUrl": "http://localhost:5678/webhook/ingest-transform",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "Webhook Manual Consulta Arquivos": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "user-agent": "curl/8.7.1",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {},
+          "webhookUrl": "http://localhost:5678/webhook/consultar-dados",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "ApagarGOLD": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "user-agent": "curl/8.7.1",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {},
+          "webhookUrl": "http://localhost:5678/webhook/ingest-transform",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "ApagarGOLDSILVER": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "user-agent": "curl/8.7.1",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {},
+          "webhookUrl": "http://localhost:5678/webhook/ingest-transform",
+          "executionMode": "production"
+        }
+      }
+    ],
+    "ApagarGOLDSILVERBRONZE": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "user-agent": "curl/8.7.1",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {},
+          "webhookUrl": "http://localhost:5678/webhook/ingest-transform",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Executar Ingestão Q1": {
+      "main": [
+        [
+          {
+            "node": "Executar Transformação Q2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar Transformação Q2": {
+      "main": [
+        [
+          {
+            "node": "Response API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Arquivos Gold": {
+      "main": [
+        []
+      ]
+    },
+    "Response Consulta": {
+      "main": [
+        []
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Executar Ingestão Q1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "q4_query": {
+      "main": [
+        [
+          {
+            "node": "Executar Q4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar Q4": {
+      "main": [
+        [
+          {
+            "node": "ResponseQ4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pesquisa": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Manual Q1+Q2": {
+      "main": [
+        [
+          {
+            "node": "Executar Ingestão Q1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Manual Consulta Arquivos": {
+      "main": [
+        [
+          {
+            "node": "Consultar lista de arquivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar lista de arquivos": {
+      "main": [
+        [
+          {
+            "node": "Response Consulta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ApagarGOLD": {
+      "main": [
+        [
+          {
+            "node": "Comando Apagar Gold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ApagarGOLDSILVER": {
+      "main": [
+        [
+          {
+            "node": "Comando Apagar Gold+Silver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ApagarGOLDSILVERBRONZE": {
+      "main": [
+        [
+          {
+            "node": "Comando Apagar Gold+Silver+Bronze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b5623f52-aa99-465e-9323-969ccb5b3b7a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ba01a22ad001430982c9c2c86096883966511a2b3c77ff50640f6ccbcb2f477c"
+  },
+  "id": "R4YTzDM1uglDMlrL",
+  "tags": []
+}
